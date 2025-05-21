@@ -1,1 +1,0 @@
-# sentinel-tems_robust_adaptive_cards
