@@ -1,0 +1,226 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "Append_Entities_to_Entity_Array": {
+                "actions": {
+                    "Append_to_string_variable": {
+                        "inputs": {
+                            "name": "Entities",
+                            "value": "@{items('Append_Entities_to_Entity_Array')?['properties']?['friendlyName']}; "
+                        },
+                        "runAfter": {},
+                        "type": "AppendToStringVariable"
+                    }
+                },
+                "foreach": "@triggerBody()?['object']?['properties']?['relatedEntities']",
+                "runAfter": {
+                    "Initialize_Entity_String": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Foreach"
+            },
+            "Close_or_Update_Adaptive_Card": {
+                "actions": {
+                    "Close_adaptive_card": {
+                        "inputs": {
+                            "body": {
+                                "messageBody": "{\n  \"type\": \"AdaptiveCard\",\n  \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n  \"version\": \"1.4\",\n  \"body\": [\n    {\n      \"size\": \"Large\",\n      \"text\": \"Microsoft Sentinel Incident Closed [(@{triggerBody()?['object']?['properties']?['incidentNumber']})](@{triggerBody()?['object']?['properties']?['incidentUrl']})\",\n      \"type\": \"TextBlock\",\n      \"weight\": \"Bolder\",\n      \"wrap\": true\n    },\n    {\n      \"type\": \"FactSet\",\n      \"facts\": [\n             {\n          \"size\": \"medium\",\n          \"spacing\": \"large\",\n          \"title\": \"Title:\",\n          \"value\": \"@{triggerBody()?['object']?['properties']?['title']}\"\n        },\n        {\n          \"spacing\": \"Medium\",\n          \"title\": \"Severity:\",\n          \"value\": \"@{triggerBody()?['object']?['properties']?['severity']}\"\n        },\n        {\n          \"spacing\": \"Medium\",\n          \"title\": \"Alerts:\",\n          \"value\": \"@{triggerBody()?['object']?['properties']?['additionalData']?['alertsCount']}\"\n        },\n        {\n          \"spacing\": \"Medium\",\n          \"title\": \"Entities:\",\n          \"value\": \"@{variables('Entities')}\"\n        },\n        {\n          \"spacing\": \"Medium\",\n          \"title\": \"Finding:\",\n          \"value\": \"@{triggerBody()?['object']?['properties']?['classification']}\"\n        },\n        {\n          \"spacing\": \"Medium\",\n          \"title\": \"Comment:\",\n          \"value\": \"@{triggerBody()?['object']?['properties']?['classificationComment']}\"\n        }\n      ]\n    }\n  ]\n}",
+                                "messageId": "@{outputs('Compose_Message_ID')}",
+                                "recipient": {
+                                    "channelId": "<<<<<CHANNEL-ID-HERE>>>>>",
+                                    "groupId": "<<<<<GROUP-ID-HERE>>>>>"
+                                }
+                            },
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['teams_1']['connectionId']"
+                                }
+                            },
+                            "method": "post",
+                            "path": "/v1.0/teams/conversation/updateAdaptivecard/poster/Flow bot/location/@{encodeURIComponent('Channel')}"
+                        },
+                        "runAfter": {},
+                        "type": "ApiConnection"
+                    }
+                },
+                "else": {
+                    "actions": {
+                        "For_each": {
+                            "actions": {
+                                "Update_adaptive_card": {
+                                    "inputs": {
+                                        "body": {
+                                            "messageBody": "{\n  \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n  \"actions\": [\n    {\n      \"iconUrl\": \"https://seeklogo.com/images/M/microsoft-sentinel-azure-logo-28FA1B44A7-seeklogo.com.png\",\n      \"title\": \"Microsoft Sentinel Incidents\",\n      \"type\": \"Action.OpenUrl\",\n      \"url\": \"<<<<<SENTINEL-INSTANCE-HERE>>>>>"\n    },\n    {\n      \"data\": {\n        \"x\": \"confirm\"\n      },\n      \"iconUrl\": \"https://cdn-icons-png.flaticon.com/512/1828/1828640.png\",\n      \"title\": \"Close Incident\",\n      \"type\": \"Action.Submit\"\n    }\n  ],\n  \"body\": [\n    {\n      \"size\": \"Large\",\n      \"text\": \"Microsoft Sentinel Incident Created [(@{triggerBody()?['object']?['properties']?['incidentNumber']})](@{triggerBody()?['object']?['properties']?['incidentUrl']})\",\n      \"type\": \"TextBlock\",\n      \"weight\": \"Bolder\",\n      \"wrap\": true\n    },\n    {\n      \"facts\": [\n               {\n          \"size\": \"medium\",\n          \"spacing\": \"large\",\n          \"title\": \"Title:\",\n          \"value\": \"@{triggerBody()?['object']?['properties']?['title']}\"\n        },\n        {\n          \"spacing\": \"Medium\",\n          \"title\": \"Description:\",\n          \"value\": \"@{triggerBody()?['object']?['properties']?['description']}\"\n        },\n        {\n          \"spacing\": \"Medium\",\n          \"title\": \"Created:\",\n          \"value\": \"@{triggerBody()?['object']?['properties']?['createdTimeUtc']}\"\n        },\n        {\n          \"spacing\": \"Medium\",\n          \"title\": \"Severity:\",\n          \"value\": \"@{triggerBody()?['object']?['properties']?['severity']}\"\n        },\n        {\n          \"spacing\": \"Medium\",\n          \"title\": \"Alerts:\",\n          \"value\": \"@{triggerBody()?['object']?['properties']?['additionalData']?['alertsCount']}\"\n        },\n        {\n          \"spacing\": \"Medium\",\n          \"title\": \"Entities:\",\n          \"value\": \"@{variables('Entities')}\"\n        },\n        {\n          \"spacing\": \"Medium\",\n          \"title\": \"Tactics:\",\n          \"value\": \"@{join(triggerBody()?['object']?['properties']?['additionalData']?['tactics'], '; ')}\"\n        }\n      ],\n      \"type\": \"FactSet\"\n    },\n    {\n      \"choices\": [\n        {\n          \"isSelected\": true,\n          \"title\": \"True Positive - Suspicious activity\",\n          \"value\": \"TruePositive - SuspiciousActivity\"\n        },\n        {\n          \"title\": \"Benign Positive - Suspicious but expected\",\n          \"value\": \"BenignPositive - SuspiciousButExpected\"\n        },\n        {\n          \"title\": \"False Positive - Incorrect alert logic\",\n          \"value\": \"FalsePositive - IncorrectAlertLogic\"\n        },\n        {\n          \"title\": \"False Positive - Inaccurate data\",\n          \"value\": \"FalsePositive - InaccurateData\"\n        }\n      ],\n      \"id\": \"incidentStatus\",\n      \"placeholder\": \"Select classification\",\n      \"style\": \"compact\",\n      \"type\": \"Input.ChoiceSet\",\n      \"value\": \"no\"\n    },\n    {\n      \"id\": \"incidentComment\",\n      \"placeholder\": \"Comment\",\n      \"type\": \"Input.Text\"\n    },\n    {\n      \"text\": \"Pivot to [Detection Platform Alert](@{items('For_each')?['properties']?['alertLink']})\",\n      \"type\": \"TextBlock\",\n      \"weight\": \"Bolder\",\n      \"wrap\": true\n    }\n  ],\n  \"type\": \"AdaptiveCard\",\n  \"version\": \"1.4\"\n}",
+                                            "messageId": "@{outputs('Compose_Message_ID')}",
+                                            "recipient": {
+                                                "channelId": "<<<<<CHANNEL-ID-HERE>>>>>",
+                                                "groupId": "<<<<<GROUP-ID-HERE>>>>>"
+                                            }
+                                        },
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['teams_1']['connectionId']"
+                                            }
+                                        },
+                                        "method": "post",
+                                        "path": "/v1.0/teams/conversation/updateAdaptivecard/poster/Flow bot/location/@{encodeURIComponent('Channel')}"
+                                    },
+                                    "runAfter": {},
+                                    "type": "ApiConnection"
+                                }
+                            },
+                            "foreach": "@triggerBody()?['object']?['properties']?['Alerts']",
+                            "runAfter": {},
+                            "type": "Foreach"
+                        }
+                    }
+                },
+                "expression": {
+                    "and": [
+                        {
+                            "equals": [
+                                "@triggerBody()?['object']?['properties']?['status']",
+                                "Closed"
+                            ]
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Append_Entities_to_Entity_Array": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "If"
+            },
+            "Compose_Message_ID": {
+                "inputs": "@First(body('Select_First_Incident_Card'))?['id']",
+                "runAfter": {
+                    "Select_First_Incident_Card": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Compose"
+            },
+            "Compose_Search_ID": {
+                "inputs": "(@{triggerBody()?['object']?['properties']?['incidentNumber']})",
+                "runAfter": {},
+                "type": "Compose"
+            },
+            "Filter_for_Attachments": {
+                "inputs": {
+                    "from": "@body('Filter_for_Bot_Messages')",
+                    "where": "@greater(length(item()?['attachments']), 0)"
+                },
+                "runAfter": {
+                    "Filter_for_Bot_Messages": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Query"
+            },
+            "Filter_for_Bot_Messages": {
+                "inputs": {
+                    "from": "@body('Get_messages')?['value']",
+                    "where": "@equals(item()?['from']?['application']?['applicationIdentityType'], 'bot')"
+                },
+                "runAfter": {
+                    "Get_messages": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Query"
+            },
+            "Get_messages": {
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['teams_1']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/beta/teams/@{encodeURIComponent('<<<<<GROUP-ID-HERE>>>>>')}/channels/@{encodeURIComponent('<<<<<CHANNEL-ID-HERE>>>>>')}/messages"
+                },
+                "runAfter": {
+                    "Compose_Search_ID": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection"
+            },
+            "Initialize_Entity_String": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "Entities",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Compose_Message_ID": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Select_First_Incident_Card": {
+                "inputs": {
+                    "from": "@body('Filter_for_Attachments')",
+                    "where": "@contains(first(item()?['attachments'])?['content'], outputs('Compose_Search_ID'))"
+                },
+                "runAfter": {
+                    "Filter_for_Attachments": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Query"
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "parameters": {
+            "$connections": {
+                "defaultValue": {},
+                "type": "Object"
+            }
+        },
+        "triggers": {
+            "Microsoft_Sentinel_incident": {
+                "inputs": {
+                    "body": {
+                        "callback_url": "@{listCallbackUrl()}"
+                    },
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['microsoftsentinel']['connectionId']"
+                        }
+                    },
+                    "path": "/incident-creation"
+                },
+                "type": "ApiConnectionWebhook"
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "value": {
+                "microsoftsentinel": {
+                    "connectionId": "<<<<<CONNECTION-ID-HERE>>>>>",
+                    "connectionName": "<<<<<CONNECTION-NAME-HERE>>>>>",
+                    "connectionProperties": {
+                        "authentication": {
+                            "type": "ManagedServiceIdentity"
+                        }
+                    },
+                    "id": "<<<<<CONNECTION-ID-HERE>>>>>"
+                },
+                "teams_1": {
+                    "connectionId": "<<<<<CONNECTION-ID-HERE>>>>>",
+                    "connectionName": "<<<<<CONNECTION-NAME-HERE>>>>>",
+                    "id": "<<<<<CONNECTION-ID-HERE>>>>>"
+                }
+            }
+        }
+    }
+}
